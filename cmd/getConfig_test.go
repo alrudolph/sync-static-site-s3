@@ -17,7 +17,7 @@ func TestGetAWSConfig(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		creds, err := GetAWSConfig(test.accessKeyId, test.secretAccessKey, test.profile, test.region, nil)
+		_, creds, err := GetAWSConfig(test.accessKeyId, test.secretAccessKey, test.profile, test.region, "", nil)
 
 		if test.expectedError && err == nil {
 			log.Fatalf("Test did not fail")

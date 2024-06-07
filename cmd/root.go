@@ -2,16 +2,132 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"os/user"
 	"path/filepath"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
+type Config struct {
+	Region          string
+	AccessKeyID     string
+	SecretAccessKey string
+	Profile         string
+	Role            string
+	Bucket          string
+	Directory       string
+}
+
+type SavedConfig struct {
+	UserDirectory   string `json:"userDirectory"`
+	Name            string `json:"name"`
+	Region          string `json:"region"`
+	AccessKeyID     string `json:"accessKeyId"`
+	SecretAccessKey string `json:"secretAccessKey"`
+	Profile         string `json:"profile"`
+	Role            string `json:"role"`
+	Bucket          string `json:"bucket"`
+	Directory       string `json:"directory"`
+}
+
+type SavedConfigFile struct {
+	Profiles []SavedConfig `json:"profiles"`
+}
+
+func LoadConfigFromFile(configName string) (*Config, error) {
+	usr, err := user.Current()
+
+	if err != nil {
+		return nil, err
+	}
+
+	homeDir := usr.HomeDir
+
+	configFile, err := os.Open(filepath.Join(homeDir, "sync-s3", "config.json"))
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer configFile.Close()
+
+	savedConfig := SavedConfigFile{}
+
+	jsonParser := json.NewDecoder(configFile)
+	if err = jsonParser.Decode(&savedConfig); err != nil {
+		return nil, err
+	}
+
+	var foundProfile *SavedConfig = nil
+	cwd, err := filepath.Abs(".")
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, profile := range savedConfig.Profiles {
+		if profile.Name == configName && profile.UserDirectory == cwd {
+			foundProfile = &profile
+			break
+		}
+	}
+
+	if foundProfile == nil {
+		return nil, fmt.Errorf("config with name %s not found", configName)
+	}
+
+	return &Config{
+		Region:          foundProfile.Region,
+		AccessKeyID:     foundProfile.AccessKeyID,
+		SecretAccessKey: foundProfile.SecretAccessKey,
+		Profile:         foundProfile.Profile,
+		Role:            foundProfile.Role,
+		Bucket:          foundProfile.Bucket,
+		Directory:       foundProfile.Directory,
+	}, nil
+}
+
+func NewConfig(cmd *cobra.Command, args []string) *Config {
+	configName, loadFromConfigErr := cmd.Flags().GetString("config")
+
+	if loadFromConfigErr == nil {
+		config, err := LoadConfigFromFile(configName)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		return config
+	}
+
+	directory, _ := cmd.Flags().GetString("directory")
+	bucket, _ := cmd.Flags().GetString("bucket")
+
+	region, _ := cmd.Flags().GetString("region")
+
+	// Credentials:
+	profile, _ := cmd.Flags().GetString("profile")
+	accessKeyId, _ := cmd.Flags().GetString("access-key-id")
+	secretAccesKey, _ := cmd.Flags().GetString("secret-access-key")
+	role, _ := cmd.Flags().GetString("role")
+
+	return &Config{
+		Region:          region,
+		AccessKeyID:     accessKeyId,
+		SecretAccessKey: secretAccesKey,
+		Profile:         profile,
+		Role:            role,
+		Bucket:          bucket,
+		Directory:       directory,
+	}
+}
+
+var RootCmd = &cobra.Command{
 	Use:   "sync-static-site-s3",
 	Short: "Upload a directory containing files for a static site to a S3 Bucket",
 	Long: `This CLI uploads the files in a directory to an S3 bucket but makes important
@@ -30,18 +146,16 @@ Example Usage:
 			fmt.Println("Additional supplied args will be ignored")
 		}
 
-		// Required:
-		directory, _ := cmd.Flags().GetString("directory")
-		bucket, _ := cmd.Flags().GetString("bucket")
+		userInput := NewConfig(cmd, args)
 
-		region, _ := cmd.Flags().GetString("region")
-
-		// Credentials:
-		profile, _ := cmd.Flags().GetString("profile")
-		accessKeyId, _ := cmd.Flags().GetString("access-key-id")
-		secretAccesKey, _ := cmd.Flags().GetString("secret-access-key")
-
-		awsConfig, err := GetAWSConfig(accessKeyId, secretAccesKey, profile, region, ctx)
+		_, awsConfig, err := GetAWSConfig(
+			userInput.AccessKeyID,
+			userInput.SecretAccessKey,
+			userInput.Profile,
+			userInput.Region,
+			userInput.Role,
+			ctx,
+		)
 
 		if err != nil {
 			log.Fatal(err)
@@ -49,7 +163,7 @@ Example Usage:
 
 		client := s3.NewFromConfig(awsConfig)
 
-		err = EmptyBucket(bucket, client, ctx)
+		err = EmptyBucket(userInput.Bucket, client, ctx)
 
 		if err != nil {
 			fmt.Println("Failed to clear bucket, aborting upload")
@@ -57,19 +171,12 @@ Example Usage:
 		}
 
 		// TODO: can i batch this?
-		err = filepath.Walk(
-			directory,
-			func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-
-				if info.IsDir() {
-					return nil
-				}
-
-				return UploadFile(directory, path, bucket, client, ctx)
-			},
+		err = UploadDirectory(
+			userInput.Directory,
+			userInput.Directory,
+			userInput.Bucket,
+			client,
+			ctx,
 		)
 
 		if err != nil {
@@ -78,24 +185,38 @@ Example Usage:
 	},
 }
 
+func UploadDirectory(directory, path, bucket string, client *s3.Client, ctx context.Context) error {
+	return filepath.Walk(
+		directory,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if info.IsDir() {
+				return nil
+			}
+
+			return UploadFile(directory, path, bucket, client, ctx)
+		},
+	)
+}
+
 func Execute() {
-	err := rootCmd.Execute()
+	err := RootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
 func init() {
-	rootCmd.Flags().StringP("directory", "d", "", "Path to the static site directory")
-	_ = rootCmd.MarkFlagDirname("directory")
-	_ = rootCmd.MarkFlagRequired("directory")
-
-	rootCmd.Flags().StringP("bucket", "b", "", "S3 bucket name")
-	_ = rootCmd.MarkFlagRequired("bucket")
-
-	rootCmd.Flags().StringP("region", "r", "us-east-1", "S3 bucket region")
-
-	rootCmd.Flags().String("access-key-id", "", "AWS Access Key ID")
-	rootCmd.Flags().String("secret-access-key", "", "AWS Secret Access Key")
-	rootCmd.Flags().StringP("profile", "p", "", "AWS Profile name")
+	RootCmd.Flags().StringP("config", "c", "", "Config Profile to use. See config subcommand to list options.")
+	RootCmd.Flags().StringP("directory", "d", "", "Path to the static site directory")
+	_ = RootCmd.MarkFlagDirname("directory")
+	RootCmd.Flags().StringP("bucket", "b", "", "S3 bucket name")
+	RootCmd.Flags().StringP("region", "r", "us-east-1", "S3 bucket region")
+	RootCmd.Flags().String("access-key-id", "", "AWS Access Key ID")
+	RootCmd.Flags().String("secret-access-key", "", "AWS Secret Access Key")
+	RootCmd.Flags().StringP("profile", "p", "", "AWS Profile name")
+	RootCmd.Flags().StringP("role", "", "", "Role to switch into")
 }

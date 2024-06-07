@@ -28,6 +28,8 @@ func UploadFile(baseDirectory, path, bucketName string, client *s3.Client, ctx c
 		return err
 	}
 
+	defer file.Close()
+
 	obj := &s3.PutObjectInput{
 		Bucket:      aws.String(bucketName),
 		Key:         aws.String(keyName),

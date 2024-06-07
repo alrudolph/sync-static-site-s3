@@ -3,7 +3,6 @@ package setup
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/user"
@@ -79,7 +78,11 @@ var setupCmd = &cobra.Command{
 			}
 			newFile.Close()
 
-			ioutil.WriteFile(fileName, []byte(`{"profiles": []}`), 0644)
+			err = os.WriteFile(fileName, []byte(`{"profiles": []}`), 0644)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
 		}
 
 		// Read from file
@@ -121,8 +124,7 @@ var setupCmd = &cobra.Command{
 			return
 		}
 
-		err = ioutil.WriteFile(fileName, writeToFile, 0644)
-
+		err = os.WriteFile(fileName, writeToFile, 0644)
 		if err != nil {
 			log.Fatal(err)
 			return

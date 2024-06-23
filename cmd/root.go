@@ -2,11 +2,10 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
-	"os/user"
 	"path/filepath"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -40,38 +39,16 @@ type SavedConfigFile struct {
 }
 
 func LoadConfigFromFile(configName string) (*Config, error) {
-	usr, err := user.Current()
+	profiles, err := LoadConfigOptions()
 
 	if err != nil {
-		return nil, err
-	}
-
-	homeDir := usr.HomeDir
-
-	configFile, err := os.Open(filepath.Join(homeDir, "sync-s3", "config.json"))
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer configFile.Close()
-
-	savedConfig := SavedConfigFile{}
-
-	jsonParser := json.NewDecoder(configFile)
-	if err = jsonParser.Decode(&savedConfig); err != nil {
 		return nil, err
 	}
 
 	var foundProfile *SavedConfig = nil
-	cwd, err := filepath.Abs(".")
 
-	if err != nil {
-		return nil, err
-	}
-
-	for _, profile := range savedConfig.Profiles {
-		if profile.Name == configName && profile.UserDirectory == cwd {
+	for _, profile := range profiles {
+		if profile.Name == configName {
 			foundProfile = &profile
 			break
 		}
@@ -92,21 +69,30 @@ func LoadConfigFromFile(configName string) (*Config, error) {
 	}, nil
 }
 
-func NewConfig(cmd *cobra.Command, args []string) *Config {
+func NewConfig(cmd *cobra.Command, args []string) (*Config, error) {
 	configName, loadFromConfigErr := cmd.Flags().GetString("config")
 
-	if loadFromConfigErr == nil {
+	if loadFromConfigErr == nil && configName != "" {
 		config, err := LoadConfigFromFile(configName)
 
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		return config
+		return config, nil
 	}
 
 	directory, _ := cmd.Flags().GetString("directory")
+
+	if directory == "" {
+		return nil, errors.New("directory is required")
+	}
+
 	bucket, _ := cmd.Flags().GetString("bucket")
+
+	if directory == "" {
+		return nil, errors.New("bucket is required")
+	}
 
 	region, _ := cmd.Flags().GetString("region")
 
@@ -124,7 +110,7 @@ func NewConfig(cmd *cobra.Command, args []string) *Config {
 		Role:            role,
 		Bucket:          bucket,
 		Directory:       directory,
-	}
+	}, nil
 }
 
 var RootCmd = &cobra.Command{
@@ -146,7 +132,11 @@ Example Usage:
 			fmt.Println("Additional supplied args will be ignored")
 		}
 
-		userInput := NewConfig(cmd, args)
+		userInput, err := NewConfig(cmd, args)
+
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		_, awsConfig, err := GetAWSConfig(
 			userInput.AccessKeyID,

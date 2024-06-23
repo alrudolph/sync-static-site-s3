@@ -29,7 +29,11 @@ var setupCmd = &cobra.Command{
 			fmt.Println("Additional supplied args will be ignored")
 		}
 
-		config := cmd.NewConfig(command, args)
+		config, err := cmd.NewConfig(command, args)
+
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		configName, _ := command.Flags().GetString("config-name")
 		userDirectory, err := filepath.Abs(".")

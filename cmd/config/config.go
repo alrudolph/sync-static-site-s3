@@ -1,57 +1,12 @@
 package config
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
-	"os"
-	"os/user"
-	"path/filepath"
 
 	"github.com/alrudolph/snyc-static-site-s3/cmd"
 	"github.com/spf13/cobra"
 )
-
-func LoadConfigOptions() ([]cmd.SavedConfig, error) {
-	usr, err := user.Current()
-
-	if err != nil {
-		return nil, err
-	}
-
-	homeDir := usr.HomeDir
-
-	configFile, err := os.Open(filepath.Join(homeDir, "sync-s3", "config.json"))
-
-	if err != nil {
-		return nil, errors.New("no config profiles found, create one using setup subcommand")
-	}
-
-	savedConfig := cmd.SavedConfigFile{}
-
-	jsonParser := json.NewDecoder(configFile)
-	if err = jsonParser.Decode(&savedConfig); err != nil {
-		return nil, err
-	}
-
-	cwd, err := filepath.Abs(".")
-
-	if err != nil {
-		return nil, err
-	}
-
-	profiles := []cmd.SavedConfig{}
-
-	for _, profile := range savedConfig.Profiles {
-		if profile.UserDirectory == cwd {
-			profiles = append(profiles, profile)
-			break
-		}
-	}
-
-	return profiles, nil
-}
 
 func starOutWord(word string, showLast int) string {
 	if len(word) <= showLast {
@@ -78,7 +33,7 @@ var configCmd = &cobra.Command{
 			fmt.Println("Additional supplied args will be ignored")
 		}
 
-		options, err := LoadConfigOptions()
+		options, err := cmd.LoadConfigOptions()
 
 		if err != nil {
 			log.Fatal(err)

@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
+	"path/filepath"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -98,4 +101,44 @@ func getAWSConfig(accessKeyId, secretAccessKey, profile, region string, ctx cont
 			},
 		},
 	}, nil
+}
+func LoadConfigOptions() ([]SavedConfig, error) {
+	usr, err := user.Current()
+
+	if err != nil {
+		return nil, err
+	}
+
+	homeDir := usr.HomeDir
+
+	configFile, err := os.Open(filepath.Join(homeDir, "sync-s3", "config.json"))
+
+	if err != nil {
+		return nil, errors.New("no config profiles found, create one using setup subcommand")
+	}
+
+	savedConfig := SavedConfigFile{}
+
+	jsonParser := json.NewDecoder(configFile)
+	if err = jsonParser.Decode(&savedConfig); err != nil {
+		return nil, err
+	}
+
+	cwd, err := filepath.Abs(".")
+
+	if err != nil {
+		return nil, err
+	}
+
+	profiles := []SavedConfig{}
+
+	for _, profile := range savedConfig.Profiles {
+		if profile.UserDirectory != cwd {
+			continue
+		}
+
+		profiles = append(profiles, profile)
+	}
+
+	return profiles, nil
 }

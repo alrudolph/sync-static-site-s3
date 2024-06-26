@@ -41,3 +41,43 @@ Download an executable from the [releases](https://github.com/alrudolph/sync-sta
     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
+
+## Requried Permissions
+
+```json
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Effect": "Allow",
+			"Action": [
+				"cloudfront:ListDistributions",
+				"cloudfront:CreateInvalidation"
+			],
+			"Resource": "*"
+		},
+		{
+			"Effect": "Allow",
+			"Action": [
+				"s3:ListBucket",
+				"s3:GetBucketAcl"
+			],
+			"Resource": [
+				"arn:aws:s3:::BUCKET_NAME"
+			]
+		},
+		{
+			"Effect": "Allow",
+			"Action": [
+				"s3:PutObject",
+				"s3:GetObject",
+				"s3:DeleteObject",
+				"s3:PutObjectAcl"
+			],
+			"Resource": [
+				"arn:aws:s3:::BUCKET_NAME/*"
+			]
+		}
+	]
+}
+```

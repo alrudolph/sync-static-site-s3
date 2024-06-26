@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/aws/aws-sdk-go-v2/service/cloudfront"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/spf13/cobra"
 )
@@ -168,6 +169,15 @@ Example Usage:
 			client,
 			ctx,
 		)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println("Creating CloudFront invalidation...")
+
+		cloudFrontClient := cloudfront.NewFromConfig(awsConfig)
+
+		_, err = InvalidateCache(userInput.Bucket, cloudFrontClient, ctx)
 
 		if err != nil {
 			log.Fatal(err)

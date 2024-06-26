@@ -5,7 +5,7 @@ runs:
   using: composite
   steps:
   - name: Download sync-static-site-s3 CLI
-    run: gh release download v0.0.1 --repo alrudolph/sync-static-site-s3 --pattern "sync-static-site-s3-linux-amd64" -D $HOME
+    run: gh release download v0.0.3 --repo alrudolph/sync-static-site-s3 --pattern "sync-static-site-s3-linux-amd64" -D $HOME
     env:
       GH_TOKEN: ${{ github.token }}
     shell: bash

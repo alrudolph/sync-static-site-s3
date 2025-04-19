@@ -20,7 +20,9 @@ type Config struct {
 	Profile         string
 	Role            string
 	Bucket          string
+	Prefix          string
 	Directory       string
+	CfInvalidate    bool
 }
 
 type SavedConfig struct {
@@ -90,6 +92,7 @@ func NewConfig(cmd *cobra.Command, args []string) (*Config, error) {
 	}
 
 	bucket, _ := cmd.Flags().GetString("bucket")
+	prefix, _ := cmd.Flags().GetString("prefix")
 
 	if directory == "" {
 		return nil, errors.New("bucket is required")
@@ -103,6 +106,8 @@ func NewConfig(cmd *cobra.Command, args []string) (*Config, error) {
 	secretAccesKey, _ := cmd.Flags().GetString("secret-access-key")
 	role, _ := cmd.Flags().GetString("role")
 
+	cfInvalidate, _ := cmd.Flags().GetBool("cf-invalidate")
+
 	return &Config{
 		Region:          region,
 		AccessKeyID:     accessKeyId,
@@ -111,6 +116,8 @@ func NewConfig(cmd *cobra.Command, args []string) (*Config, error) {
 		Role:            role,
 		Bucket:          bucket,
 		Directory:       directory,
+		Prefix:          prefix,
+		CfInvalidate:    cfInvalidate,
 	}, nil
 }
 
@@ -154,7 +161,7 @@ Example Usage:
 
 		client := s3.NewFromConfig(awsConfig)
 
-		err = EmptyBucket(userInput.Bucket, client, ctx)
+		err = EmptyBucket(userInput.Bucket, userInput.Prefix, client, ctx)
 
 		if err != nil {
 			fmt.Println("Failed to clear bucket, aborting upload")
@@ -166,11 +173,16 @@ Example Usage:
 			userInput.Directory,
 			userInput.Directory,
 			userInput.Bucket,
+			userInput.Prefix,
 			client,
 			ctx,
 		)
 		if err != nil {
 			log.Fatal(err)
+		}
+
+		if !userInput.CfInvalidate {
+			return
 		}
 
 		fmt.Println("Creating CloudFront invalidation...")
@@ -185,7 +197,7 @@ Example Usage:
 	},
 }
 
-func UploadDirectory(directory, path, bucket string, client *s3.Client, ctx context.Context) error {
+func UploadDirectory(directory, path, bucket, prefix string, client *s3.Client, ctx context.Context) error {
 	return filepath.Walk(
 		directory,
 		func(path string, info os.FileInfo, err error) error {
@@ -197,7 +209,7 @@ func UploadDirectory(directory, path, bucket string, client *s3.Client, ctx cont
 				return nil
 			}
 
-			return UploadFile(directory, path, bucket, client, ctx)
+			return UploadFile(directory, path, bucket, prefix, client, ctx)
 		},
 	)
 }
@@ -214,9 +226,11 @@ func init() {
 	RootCmd.Flags().StringP("directory", "d", "", "Path to the static site directory")
 	_ = RootCmd.MarkFlagDirname("directory")
 	RootCmd.Flags().StringP("bucket", "b", "", "S3 bucket name")
+	RootCmd.Flags().StringP("prefix", "x", "", "S3 bucket path prefix")
 	RootCmd.Flags().StringP("region", "r", "us-east-1", "S3 bucket region")
 	RootCmd.Flags().String("access-key-id", "", "AWS Access Key ID")
 	RootCmd.Flags().String("secret-access-key", "", "AWS Secret Access Key")
 	RootCmd.Flags().StringP("profile", "p", "", "AWS Profile name")
 	RootCmd.Flags().StringP("role", "", "", "Role to switch into")
+	RootCmd.Flags().BoolP("cf-invalidate", "", false, "Wether to create a CloudFront invalidation")
 }

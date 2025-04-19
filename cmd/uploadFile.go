@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func UploadFile(baseDirectory, path, bucketName string, client *s3.Client, ctx context.Context) error {
+func UploadFile(baseDirectory, path, bucketName, prefix string, client *s3.Client, ctx context.Context) error {
 	fileName, err := filepath.Rel(baseDirectory, path)
 
 	if err != nil {
@@ -19,6 +19,10 @@ func UploadFile(baseDirectory, path, bucketName string, client *s3.Client, ctx c
 	}
 
 	keyName, mimeType := getObjectKeyType(fileName)
+
+	if prefix != "" {
+		keyName = filepath.Join(prefix, keyName)
+	}
 
 	fmt.Printf("> uploading %s - %s\n", keyName, mimeType)
 

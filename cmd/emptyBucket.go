@@ -9,9 +9,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-func EmptyBucket(bucketName string, client *s3.Client, ctx context.Context) error {
+func EmptyBucket(bucketName, prefix string, client *s3.Client, ctx context.Context) error {
 	paginator := s3.NewListObjectsV2Paginator(client, &s3.ListObjectsV2Input{
 		Bucket: aws.String(bucketName),
+		Prefix: &prefix,
 	})
 
 	for paginator.HasMorePages() {

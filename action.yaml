@@ -5,7 +5,11 @@ runs:
   using: composite
   steps:
   - name: Download sync-static-site-s3 CLI
-    run: gh release download v0.0.3 --repo alrudolph/sync-static-site-s3 --pattern "sync-static-site-s3-linux-amd64" -D $HOME
+    run: |
+      gh release download v0.0.4 \
+        --repo alrudolph/sync-static-site-s3 \
+        --pattern "sync-static-site-s3-linux-amd64" \
+        -D $HOME
     env:
       GH_TOKEN: ${{ github.token }}
     shell: bash
@@ -13,7 +17,12 @@ runs:
     run: chmod +x $HOME/sync-static-site-s3-linux-amd64
     shell: bash
   - name: Sync Static Site to S3
-    run:  $HOME/sync-static-site-s3-linux-amd64 --directory "${{inputs.directory}}" --bucket "${{inputs.bucket}}"
+    run:  |
+      $HOME/sync-static-site-s3-linux-amd64 \
+        --directory "${{inputs.directory}}" \
+        --bucket "${{inputs.bucket}}" \
+        --cf-invalidate="${{inputs.invalidate-cloudfront}}" \
+        --prefix "${{inputs.prefix}}"
     shell: bash
 inputs:
   bucket:
@@ -22,6 +31,14 @@ inputs:
   directory:
     description: Path to directory
     required: true
+  invalidate-cloudfront:
+    description: Invalidate CloudFront distribution
+    required: false
+    default: false
+  prefix:
+    description: Prefix for the files
+    required: false
+    default: ''
 branding:
   icon: upload-cloud
   color: blue

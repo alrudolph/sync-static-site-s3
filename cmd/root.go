@@ -86,15 +86,10 @@ func NewConfig(cmd *cobra.Command, args []string) (*Config, error) {
 	}
 
 	directory, _ := cmd.Flags().GetString("directory")
-
-	if directory == "" {
-		return nil, errors.New("directory is required")
-	}
-
 	bucket, _ := cmd.Flags().GetString("bucket")
 	prefix, _ := cmd.Flags().GetString("prefix")
 
-	if directory == "" {
+	if bucket == "" {
 		return nil, errors.New("bucket is required")
 	}
 
@@ -168,9 +163,12 @@ Example Usage:
 			log.Fatal(err)
 		}
 
+		if userInput.Directory == "" {
+			return
+		}
+
 		// TODO: can i batch this?
 		err = UploadDirectory(
-			userInput.Directory,
 			userInput.Directory,
 			userInput.Bucket,
 			userInput.Prefix,
@@ -197,7 +195,7 @@ Example Usage:
 	},
 }
 
-func UploadDirectory(directory, path, bucket, prefix string, client *s3.Client, ctx context.Context) error {
+func UploadDirectory(directory, bucket, prefix string, client *s3.Client, ctx context.Context) error {
 	return filepath.Walk(
 		directory,
 		func(path string, info os.FileInfo, err error) error {

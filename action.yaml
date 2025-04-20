@@ -6,7 +6,7 @@ runs:
   steps:
   - name: Download sync-static-site-s3 CLI
     run: |
-      gh release download v0.0.6 \
+      gh release download v0.0.7 \
         --repo alrudolph/sync-static-site-s3 \
         --pattern "sync-static-site-s3-linux-amd64" \
         -D $HOME

@@ -1,3 +1,9 @@
+> [!WARNING]
+> **This repository has moved.**
+>
+> Please update your references to:
+> https://github.com/alrudolph/clis/sync-static-site-s3
+
 # Sync-Static-Site-S3
 
 Empty an S3 Bucket and upload contents of a directory, with file extension and content-type considerations for html files.

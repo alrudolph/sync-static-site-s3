@@ -2,7 +2,7 @@
 > **This repository has moved.**
 >
 > Please update your references to:
-> https://github.com/alrudolph/clis/sync-static-site-s3
+> https://github.com/alrudolph/clis/src/sync-static-site-s3
 
 # Sync-Static-Site-S3
 

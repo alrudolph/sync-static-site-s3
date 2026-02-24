@@ -91,6 +91,8 @@ func getAWSConfig(accessKeyId, secretAccessKey, profile, region string, ctx cont
 		return "", aws.Config{}, errors.New("no secret access key provided")
 	}
 
+	sessionToken, _ := os.LookupEnv("AWS_SESSION_TOKEN")
+
 	fmt.Println("Using access keys from environment variables")
 	return "", aws.Config{
 		Region: region,
@@ -98,6 +100,7 @@ func getAWSConfig(accessKeyId, secretAccessKey, profile, region string, ctx cont
 			Value: aws.Credentials{
 				AccessKeyID:     accessKeyId,
 				SecretAccessKey: secretAccessKey,
+				SessionToken:    sessionToken,
 			},
 		},
 	}, nil
